@@ -1,0 +1,329 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template for benchmarking lambda runtimes
+
+Globals:
+  Function:
+    Timeout: 120
+    MemorySize: 128
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Resources:
+  NodeGeoHashLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: layers/node/ngeohash
+      CompatibleRuntimes:
+        - nodejs18.x
+    Metadata:
+      BuildMethod: nodejs18.x
+  NodeWaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/node/wave/src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        NodeWaveEvent:
+          Type: Api
+          Properties:
+            Path: /node/wave
+            Method: post
+  NodeSaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/node/save/src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref NodeGeoHashLayer
+      Policies: AmazonDynamoDBFullAccess
+      Events:
+        NodeSaveEvent:
+          Type: Api
+          Properties:
+            Path: /node/save
+            Method: post
+  NodeSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/node/search/src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref NodeGeoHashLayer
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        NodeSearchEvent:
+          Type: Api
+          Properties:
+            Path: /node/search
+            Method: post
+  NodeWarmUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/node/search/src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref NodeGeoHashLayer
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        NodeWarmUpEvent:
+          Type: Api
+          Properties:
+            Path: /node/warmup
+            Method: post
+
+  PythonGeoHashLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: layers/python/geohash
+      CompatibleRuntimes:
+        - python3.9
+    Metadata:
+      BuildMethod: python3.9
+  PythonWaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/python/wave/src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Events:
+        PythonWaveEvent:
+          Type: Api
+          Properties:
+            Path: /python/wave
+            Method: post
+  PythonSaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/python/save/src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref PythonGeoHashLayer
+      Policies: AmazonDynamoDBFullAccess
+      Events:
+        PythonSaveEvent:
+          Type: Api
+          Properties:
+            Path: /python/save
+            Method: post
+  PythonSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/python/search/src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref PythonGeoHashLayer
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        PythonSearchEvent:
+          Type: Api
+          Properties:
+            Path: /python/search
+            Method: post
+  PythonWarmUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/python/search/src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref PythonGeoHashLayer
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        PythonWarmUpEvent:
+          Type: Api
+          Properties:
+            Path: /python/warmup
+            Method: post
+
+  RustWaveFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: functions/rust/wave
+      Handler: bootstrap
+      Runtime: provided.al2
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      Events:
+        RustSaveEvent:
+          Type: Api
+          Properties:
+            Path: /rust/wave
+            Method: post
+  RustSaveFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: functions/rust/save
+      Handler: bootstrap
+      Runtime: provided.al2
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBFullAccess
+      Events:
+        RustSaveEvent:
+          Type: Api
+          Properties:
+            Path: /rust/save
+            Method: post
+  RustSearchFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: functions/rust/search
+      Handler: bootstrap
+      Runtime: provided.al2
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        RustSearchEvent:
+          Type: Api
+          Properties:
+            Path: /rust/search
+            Method: post
+  RustWarmUpFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: functions/rust/search
+      Handler: bootstrap
+      Runtime: provided.al2
+      MemorySize: 128
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        RustWarmUpEvent:
+          Type: Api
+          Properties:
+            Path: /rust/warmup
+            Method: post
+
+  GoWaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/go/wave/src
+      Handler: handler
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Events:
+        GoWaveEvent:
+          Type: Api
+          Properties:
+            Path: /go/wave
+            Method: post
+  GoSaveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/go/save/src
+      Handler: handler
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBFullAccess
+      Events:
+        GoSaveEvent:
+          Type: Api
+          Properties:
+            Path: /go/save
+            Method: post
+  GoSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/go/search/src
+      Handler: handler
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        GoSearchEvent:
+          Type: Api
+          Properties:
+            Path: /go/search
+            Method: post
+  GoWarmUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/go/search/src
+      Handler: handler
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        GoWarmUpEvent:
+          Type: Api
+          Properties:
+            Path: /go/warmup
+            Method: post
+
+  GeoTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: geo
+      AttributeDefinitions: 
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gpk
+          AttributeType: S
+        - AttributeName: gsk
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+          - IndexName: geo-index
+            KeySchema:
+              - AttributeName: gpk
+                KeyType: HASH
+              - AttributeName: gsk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+Outputs:
+  BMLambdaApi:
+    Description: "API Gateway endpoint URL for Prod stage for bmlambda resource"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  RoadtripTable: 
+    Description: "Geo DynamoDB table"
+    Value: !GetAtt GeoTable.Arn
