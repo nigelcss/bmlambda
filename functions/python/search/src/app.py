@@ -5,20 +5,23 @@ from boto3.dynamodb.conditions import Key
 import json
 import geohash
 
+
 @dataclass_json
 @dataclass
 class QueryItem:
-    lat : str
-    lon : str
-    radius : str
+    lat: str
+    lon: str
+    radius: str
+
 
 @dataclass_json
 @dataclass
 class Item:
-    owner : str
-    name : str
-    lat : str
-    lon : str
+    owner: str
+    name: str
+    lat: str
+    lon: str
+
 
 # warmup while the CPU is boosted
 dynamodb = boto3.resource('dynamodb')
@@ -27,6 +30,17 @@ try:
     geo_table.get_item(Key={'pk': 'nil', 'sk': 'nil'})
 finally:
     print('init done')
+
+
+def query(geohash):
+    response = geo_table.query(
+        IndexName='geo-index',
+        KeyConditionExpression=(
+            Key('gpk').eq(geohash) & Key('gsk').begins_with('RT:python')
+        ),
+    )
+    return [Item.from_dict(item) for item in response['Items']]
+
 
 def lambda_handler(event, context):
     # get the body as an object tree
@@ -38,20 +52,13 @@ def lambda_handler(event, context):
     matches = geohash.expand(gh)
 
     # load any items from dynamodb with a matching geohash
-    items = []
-    for igh in matches:
-        response = geo_table.query(
-            IndexName='geo-index',
-            KeyConditionExpression=(
-                Key('gpk').eq(igh) & Key('gsk').begins_with('RT:python')
-            ),
-        )
-        for item in response['Items']:
-            items.append(Item.from_dict(item))
+    results = [query(geohash) for geohash in matches]
+
+    items = [item.to_dict() for sublist in results for item in sublist]
 
     print(items)
 
     return {
         "statusCode": 200,
-        "body": Item.schema().dumps(items, many=True)
-     }
+        "body": json.dumps(items)
+    }

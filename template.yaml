@@ -67,6 +67,23 @@ Resources:
           Properties:
             Path: /node/search
             Method: post
+  NodeConcFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/node/conc/src/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref NodeGeoHashLayer
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        NodeConcEvent:
+          Type: Api
+          Properties:
+            Path: /node/conc
+            Method: post
   NodeWarmUpFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -141,6 +158,23 @@ Resources:
           Properties:
             Path: /python/search
             Method: post
+  PythonConcFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/python/conc/src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Layers:
+        - !Ref PythonGeoHashLayer
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        PythonConcEvent:
+          Type: Api
+          Properties:
+            Path: /python/conc
+            Method: post
   PythonWarmUpFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -167,7 +201,6 @@ Resources:
       CodeUri: functions/rust/wave
       Handler: bootstrap
       Runtime: provided.al2
-      MemorySize: 128
       Architectures:
         - x86_64
       Events:
@@ -184,7 +217,6 @@ Resources:
       CodeUri: functions/rust/save
       Handler: bootstrap
       Runtime: provided.al2
-      MemorySize: 128
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBFullAccess
@@ -202,7 +234,6 @@ Resources:
       CodeUri: functions/rust/search
       Handler: bootstrap
       Runtime: provided.al2
-      MemorySize: 128
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBReadOnlyAccess
@@ -212,6 +243,23 @@ Resources:
           Properties:
             Path: /rust/search
             Method: post
+  RustConcFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: functions/rust/conc
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        RustConcEvent:
+          Type: Api
+          Properties:
+            Path: /rust/conc
+            Method: post
   RustWarmUpFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -220,7 +268,6 @@ Resources:
       CodeUri: functions/rust/search
       Handler: bootstrap
       Runtime: provided.al2
-      MemorySize: 128
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBReadOnlyAccess
@@ -275,6 +322,21 @@ Resources:
           Properties:
             Path: /go/search
             Method: post
+  GoConcFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/go/conc/src
+      Handler: handler
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies: AmazonDynamoDBReadOnlyAccess
+      Events:
+        GoConcEvent:
+          Type: Api
+          Properties:
+            Path: /go/conc
+            Method: post
   GoWarmUpFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -324,6 +386,6 @@ Outputs:
   BMLambdaApi:
     Description: "API Gateway endpoint URL for Prod stage for bmlambda resource"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
-  RoadtripTable: 
+  GeoTable: 
     Description: "Geo DynamoDB table"
     Value: !GetAtt GeoTable.Arn

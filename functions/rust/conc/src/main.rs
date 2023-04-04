@@ -7,7 +7,6 @@ use serde_json::Value;
 use geohash::{encode, neighbors, Coord};
 use std::error::Error;
 use std::sync::Arc;
-use tokio::join;
 
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'static>>;
 
@@ -37,6 +36,12 @@ impl From<HashMap<std::string::String, AttributeValue>> for Item {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct Response {
+    statusCode: u32,
+    body: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -59,7 +64,7 @@ async fn main() -> Result<()> {
     run(service_fn(|event: LambdaEvent<Value>| function_handler(&dynamodb, event))).await
 }
 
-async fn function_handler(dynamodb: &Arc<DynamoDbClient>, event: LambdaEvent<Value>) -> Result<Vec<Item>> {
+async fn function_handler(dynamodb: &Arc<DynamoDbClient>, event: LambdaEvent<Value>) -> Result<Response> {
 
     let query_item: QueryItem = serde_json::from_str(event.payload["body"].as_str().unwrap())?;    
     println!("{:?}", query_item);
@@ -90,7 +95,10 @@ async fn function_handler(dynamodb: &Arc<DynamoDbClient>, event: LambdaEvent<Val
 
     println!("Results: {:?}", results);
 
-    Ok(results)
+    Ok(Response { 
+        statusCode: 200,
+        body: serde_json::to_string(&results)?,
+    })
 }
 
 async fn query(dynamodb: Arc<DynamoDbClient>, geohash: &String) -> Result<Vec<Item>> {

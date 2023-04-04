@@ -8,30 +8,34 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/mmcloughlin/geohash"
 )
 
-var ddb *dynamodb.DynamoDB
+var ddb *dynamodb.Client
 var tableName *string
 
 func init() {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	ddb = dynamodb.New(sess)
 	tableName = aws.String("geo")
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-southeast-2"),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
+	ddb = dynamodb.NewFromConfig(cfg)
 
 	// warm-up the connection
-	ddb.GetItem(&dynamodb.GetItemInput{
+	ddb.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: tableName,
-		Key: map[string]*dynamodb.AttributeValue{
-			"pk": {S: aws.String("nil")},
-			"sk": {S: aws.String("nil")},
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: "nil"},
+			"sk": &types.AttributeValueMemberS{Value: "nil"},
 		},
 	})
 }
@@ -63,36 +67,31 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	nb := geohash.Neighbors(gh)
 	matches := append(nb, gh)
 
-	var responseItems []map[string]*dynamodb.AttributeValue
+	var items []Item
 	for _, geohash := range matches {
 
-		keyCond := expression.Key("gpk").Equal(expression.Value(geohash)).And(expression.Key("gsk").BeginsWith("RT:go:"))
-		expr, err := expression.NewBuilder().WithKeyCondition(keyCond).Build()
-		if err != nil {
-			log.Println("Error building expression:", err)
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
-		}
-
 		input := &dynamodb.QueryInput{
-			TableName:                 aws.String("geo"),
-			IndexName:                 aws.String("geo-index"),
-			KeyConditionExpression:    expr.KeyCondition(),
-			ExpressionAttributeNames:  expr.Names(),
-			ExpressionAttributeValues: expr.Values(),
+			TableName:              aws.String("geo"),
+			IndexName:              aws.String("geo-index"),
+			KeyConditionExpression: aws.String("gpk = :gpk and begins_with(gsk, :gsk)"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":gpk": &types.AttributeValueMemberS{Value: geohash},
+				":gsk": &types.AttributeValueMemberS{Value: "RT:go:"},
+			},
 		}
 
-		response, err2 := ddb.Query(input)
+		response, err2 := ddb.Query(ctx, input)
 		if err2 != nil {
 			log.Fatalf("Got error calling Query: %s", err2)
 		}
 
-		responseItems = append(responseItems[:], response.Items[:]...)
-	}
+		var responseItems []Item
+		err = attributevalue.UnmarshalListOfMaps(response.Items, &responseItems)
+		if err != nil {
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
 
-	var items []Item
-	err = dynamodbattribute.UnmarshalListOfMaps(responseItems, &items)
-	if err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		items = append(items[:], responseItems[:]...)
 	}
 
 	body, err := json.Marshal(items)

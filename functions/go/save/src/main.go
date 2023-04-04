@@ -9,29 +9,33 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/mmcloughlin/geohash"
 )
 
-var ddb *dynamodb.DynamoDB
+var ddb *dynamodb.Client
 var tableName *string
 
 func init() {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-	ddb = dynamodb.New(sess)
 	tableName = aws.String("geo")
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("ap-southeast-2"),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
+	ddb = dynamodb.NewFromConfig(cfg)
 
 	// warm-up the connection
-	ddb.GetItem(&dynamodb.GetItemInput{
+	ddb.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: tableName,
-		Key: map[string]*dynamodb.AttributeValue{
-			"pk": {S: aws.String("nil")},
-			"sk": {S: aws.String("nil")},
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: "nil"},
+			"sk": &types.AttributeValueMemberS{Value: "nil"},
 		},
 	})
 }
@@ -54,6 +58,19 @@ type WriteItem struct {
 	Lon   string `json:"lon"`
 }
 
+func (item WriteItem) ToAttributeValueMap() (map[string]types.AttributeValue, error) {
+	return map[string]types.AttributeValue{
+		"pk":    &types.AttributeValueMemberS{Value: item.Pk},
+		"sk":    &types.AttributeValueMemberS{Value: item.Sk},
+		"gpk":   &types.AttributeValueMemberS{Value: item.Gpk},
+		"gsk":   &types.AttributeValueMemberS{Value: item.Gsk},
+		"owner": &types.AttributeValueMemberS{Value: item.Owner},
+		"name":  &types.AttributeValueMemberS{Value: item.Name},
+		"lat":   &types.AttributeValueMemberS{Value: item.Lat},
+		"lon":   &types.AttributeValueMemberS{Value: item.Lon},
+	}, nil
+}
+
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var item Item
 	json.Unmarshal([]byte(event.Body), &item)
@@ -72,18 +89,21 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 		Lat:   item.Lat,
 		Lon:   item.Lon,
 	}
+	log.Println(writeItem)
 
-	av, err := dynamodbattribute.MarshalMap(writeItem)
+	av, err := writeItem.ToAttributeValueMap()
 	if err != nil {
 		log.Fatalf("Got error marshalling item: %s", err)
 	}
 
+	log.Println(av)
+
 	input := &dynamodb.PutItemInput{
-		Item:      av,
 		TableName: tableName,
+		Item:      av,
 	}
 
-	_, err2 := ddb.PutItem(input)
+	_, err2 := ddb.PutItem(ctx, input)
 	if err2 != nil {
 		log.Fatalf("Got error calling PutItem: %s", err2)
 	}

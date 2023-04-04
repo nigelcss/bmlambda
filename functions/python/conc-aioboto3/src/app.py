@@ -1,12 +1,11 @@
+import asyncio
 import json
-import boto3
+import aioboto3
 from boto3.dynamodb.conditions import Key
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 import json
 import geohash
-import concurrent.futures
-import threading
 
 
 @dataclass_json
@@ -26,30 +25,23 @@ class Item:
     lon: str
 
 
-# warmup while the CPU is boosted
-MAX_THREADS = 9
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS)
-dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("geo")
-try:
-    table.get_item(Key={'pk': 'nil', 'sk': 'nil'})
-finally:
-    print('init done')
-
-def worker(geohash):
-    response = table.query(
+async def query(table, geohash):
+    response = await table.query(
         IndexName="geo-index",
         KeyConditionExpression=(
             Key('gpk').eq(geohash) & Key('gsk').begins_with('RT:python')
         ),
     )
-    return response['Items']
+
+    return [Item.from_dict(item) for item in response['Items']]
 
 
-def perform_concurrent_queries(matches):
-    futures = [executor.submit(worker, geohash) for geohash in matches]
-    results = [future.result() for future in concurrent.futures.as_completed(futures)]
-    return results
+async def perform_concurrent_queries(matches):
+    async with aioboto3.Session().resource("dynamodb") as ddb:
+        table = await ddb.Table('geo')
+        tasks = [query(table, geohash) for geohash in matches]
+        results = await asyncio.gather(*tasks)
+        return results
 
 
 def lambda_handler(event, context):
@@ -61,15 +53,14 @@ def lambda_handler(event, context):
     gh = geohash.encode(float(query_item.lat), float(query_item.lon), 4)
     matches = geohash.expand(gh)
 
-    results = perform_concurrent_queries(matches)
+    loop = asyncio.get_event_loop()
+    results = loop.run_until_complete(perform_concurrent_queries(matches))
 
-    items = [Item.from_dict(item) for sublist in results for item in sublist]
+    items = [item.to_dict() for sublist in results for item in sublist]
 
     print(items)
 
-    json_dict = [item.to_dict() for item in items]
-
     return {
         "statusCode": 200,
-        "body": json.dumps(json_dict)
+        "body": json.dumps(items)
     }

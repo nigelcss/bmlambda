@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL=https://u6dn6e0vpb.execute-api.ap-southeast-2.amazonaws.com/Prod
+BASE_URL=https://0gcp6wff56.execute-api.ap-southeast-2.amazonaws.com/Prod
 NUM_REQ=500
 CONCURRENT_REQ=10
 IN=../in
@@ -40,5 +40,15 @@ sleep 3
 ab -p $IN/search-node.json -T 'application/json' -e $OUT/node-search.csv -n $NUM_REQ -c $CONCURRENT_REQ $BASE_URL/node/search
 sleep 3
 ab -p $IN/search-rust.json -T 'application/json' -e $OUT/rust-search.csv -n $NUM_REQ -c $CONCURRENT_REQ $BASE_URL/rust/search
+
+sleep 3
+
+ab -p $IN/search-python.json -T 'application/json' -e $OUT/python-conc.csv -n $NUM_REQ -c $CONCURRENT_REQ $BASE_URL/python/conc
+sleep 3
+ab -p $IN/search-go.json -T 'application/json' -e $OUT/go-conc.csv -n $NUM_REQ -c $CONCURRENT_REQ $BASE_URL/go/conc
+sleep 3
+ab -p $IN/search-node.json -T 'application/json' -e $OUT/node-conc.csv -n $NUM_REQ -c $CONCURRENT_REQ $BASE_URL/node/conc
+sleep 3
+ab -p $IN/search-rust.json -T 'application/json' -e $OUT/rust-conc.csv -n $NUM_REQ -c $CONCURRENT_REQ $BASE_URL/rust/conc
 
 date

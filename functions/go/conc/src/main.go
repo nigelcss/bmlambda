@@ -32,13 +32,13 @@ func init() {
 	ddb := dynamodb.NewFromConfig(cfg)
 
 	// warm-up the connection
-	/*ddb.GetItem(&dynamodb.GetItemInput{
+	ddb.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: tableName,
-		Key: map[string]*dynamodb.AttributeValue{
-			"pk": {S: aws.String("nil")},
-			"sk": {S: aws.String("nil")},
+		Key: map[string]types.AttributeValue{
+			"pk": &types.AttributeValueMemberS{Value: "nil"},
+			"sk": &types.AttributeValueMemberS{Value: "nil"},
 		},
-	})*/
+	})
 
 	for i := 0; i < 9; i++ {
 		go worker(ddb)
