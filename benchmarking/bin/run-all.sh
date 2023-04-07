@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL=https://0gcp6wff56.execute-api.ap-southeast-2.amazonaws.com/Prod
+BASE_URL=https://xhxq6jaix9.execute-api.ap-southeast-2.amazonaws.com/Prod
 NUM_REQ=500
 CONCURRENT_REQ=10
 IN=../in

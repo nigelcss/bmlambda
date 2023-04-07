@@ -1,12 +1,15 @@
 import json
-import boto3
-from boto3.dynamodb.conditions import Key
+from aiodynamo.client import Client
+from aiodynamo.credentials import Credentials
+from aiodynamo.http.aiohttp import AIOHTTP
+from aiodynamo.expressions import (HashKey, RangeKey)
+from aiohttp import ClientSession
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 import json
 import geohash
 import concurrent.futures
-import threading
+import asyncio
 
 
 @dataclass_json
@@ -27,28 +30,28 @@ class Item:
 
 
 # warmup while the CPU is boosted
-MAX_THREADS = 9
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS)
-dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("geo")
-try:
-    table.get_item(Key={'pk': 'nil', 'sk': 'nil'})
-finally:
-    print('init done')
+loop = asyncio.get_event_loop()
+session = ClientSession()
+client = Client(AIOHTTP(session), Credentials.auto(), "ap-southeast-2")
+table = client.table("geo")
+#dynamodb = boto3.resource("dynamodb")
+#table = dynamodb.Table("geo")
+#try:
+    #table.get_item(Key={'pk': 'nil', 'sk': 'nil'})
+#finally:
+    #print('init done')
 
-def worker(geohash):
+async def worker(geohash):
     response = table.query(
-        IndexName="geo-index",
-        KeyConditionExpression=(
-            Key('gpk').eq(geohash) & Key('gsk').begins_with('RT:python')
+        index="geo-index",
+        key_condition=(
+            HashKey('gpk', geohash) & RangeKey('gsk').begins_with('RT:python')
         ),
     )
-    return response['Items']
 
-
-def perform_concurrent_queries(matches):
-    futures = [executor.submit(worker, geohash) for geohash in matches]
-    results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    results = []
+    async for item in response:
+        results.append(item)
     return results
 
 
@@ -61,7 +64,9 @@ def lambda_handler(event, context):
     gh = geohash.encode(float(query_item.lat), float(query_item.lon), 4)
     matches = geohash.expand(gh)
 
-    results = perform_concurrent_queries(matches)
+    results = loop.run_until_complete(
+        asyncio.gather(*(worker(geohash) for geohash in matches))
+    )
 
     items = [Item.from_dict(item) for sublist in results for item in sublist]
 
