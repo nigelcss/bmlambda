@@ -2,6 +2,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: SAM Template for benchmarking lambda runtimes
 
+Parameters:
+  EventBusName:
+    Type: String
+    Description: Event bus name
+    Default: 'default'
+
 Globals:
   Function:
     Timeout: 120
@@ -225,6 +231,28 @@ Resources:
           Type: Api
           Properties:
             Path: /rust/save
+            Method: post
+  RustEventFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: functions/rust/event
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - x86_64
+      Policies:
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBusName
+      Environment:
+        Variables:
+          EVENT_BUS_NAME: !Ref EventBusName
+      Events:
+        RustPutEvent:
+          Type: Api
+          Properties:
+            Path: /rust/event
             Method: post
   RustSearchFunction:
     Type: AWS::Serverless::Function
