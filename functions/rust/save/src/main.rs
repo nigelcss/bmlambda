@@ -1,4 +1,5 @@
-use aws_sdk_dynamodb::model::AttributeValue;
+use aws_sdk_dynamodb::types::AttributeValue;
+use serde_dynamo::to_item;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -6,6 +7,10 @@ use geohash::{encode, Coord};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Item {
+    pk: Option<String>,
+    sk: Option<String>,
+    gpk: Option<String>,
+    gsk: Option<String>,
     owner: String,
     name: String,
     lat: String,
@@ -41,24 +46,20 @@ async fn main() -> Result<(), Error> {
 
 async fn function_handler(dynamodb: &aws_sdk_dynamodb::Client, event: LambdaEvent<Value>) -> Result<Response, Error> {
 
-    let item: Item = serde_json::from_str(event.payload["body"].as_str().unwrap())?;
+    let mut item: Item = serde_json::from_str(event.payload["body"].as_str().unwrap())?;
     println!("{:?}", item);
 
-    let pk = format!("RT:{}", item.owner);
-    let gpk = encode(Coord {x: item.lon.parse::<f64>().unwrap(), y: item.lat.parse::<f64>().unwrap()}, 4usize)?;
-    let gsk = format!("RT:{}:{}", item.owner, item.name);
+    item.pk = Some(format!("RT:{}", item.owner));
+    item.sk = Some(item.name.clone());
+    item.gpk = Some(encode(Coord {x: item.lon.parse::<f64>().unwrap(), y: item.lat.parse::<f64>().unwrap()}, 4usize)?);
+    item.gsk = Some(format!("RT:{}:{}", item.owner, item.name));
+
+    let put_item = to_item(item)?;
 
     dynamodb
         .put_item()
         .table_name("geo")
-        .item("pk", AttributeValue::S(pk))
-        .item("sk", AttributeValue::S(item.name.to_string()))
-        .item("gpk", AttributeValue::S(gpk))
-        .item("gsk", AttributeValue::S(gsk))
-        .item("owner", AttributeValue::S(item.owner))
-        .item("name", AttributeValue::S(item.name))
-        .item("lat", AttributeValue::S(item.lat))
-        .item("lon", AttributeValue::S(item.lon))
+        .set_item(Some(put_item))
         .send()
         .await?;
 

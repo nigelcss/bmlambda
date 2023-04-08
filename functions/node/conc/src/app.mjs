@@ -49,7 +49,7 @@ export const lambdaHandler = async (event, context) => {
     console.error(error);
     return {
       statusCode: 500,
-      body: "Error performing parallel DynamoDB queries",
+      body: "Error performing concurrent DynamoDB queries",
     };
   }
 };

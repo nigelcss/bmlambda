@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use aws_sdk_dynamodb::model::AttributeValue;
+use aws_sdk_dynamodb::types::AttributeValue;
+use serde_dynamo;
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -19,17 +19,6 @@ struct Item {
     name: String,
     lat: String,
     lon: String,
-}
-
-impl From<&HashMap<std::string::String, AttributeValue>> for Item {
-    fn from(item: &HashMap<std::string::String, AttributeValue>) -> Self {
-        Item {
-            owner: item["owner"].as_s().unwrap().to_string(),
-            name: item["name"].as_s().unwrap().to_string(),
-            lat: item["lat"].as_s().unwrap().to_string(),
-            lon: item["lon"].as_s().unwrap().to_string(),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -91,7 +80,7 @@ async fn function_handler(dynamodb: &aws_sdk_dynamodb::Client, event: LambdaEven
     .into_iter()
     .filter_map(|response| response.items)
     .flatten()
-    .map(|item| Into::<Item>::into(&item))
+    .map(|item| serde_dynamo::from_item(item).unwrap())
     .collect();
 
     println!("{:?}", items);
