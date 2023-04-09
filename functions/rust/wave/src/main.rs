@@ -6,12 +6,12 @@ use serde_json::Value;
 struct Item {
     lat: String,
     lon: String,
-    radius: String
+    radius: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Response {
-    statusCode: u32,
+    status_code: u32,
     body: String,
 }
 
@@ -23,16 +23,18 @@ async fn main() -> Result<(), Error> {
         .without_time()
         .init();
 
-    run(service_fn(|event: LambdaEvent<Value>| function_handler(event))).await
+    run(service_fn(|event: LambdaEvent<Value>| {
+        function_handler(event)
+    }))
+    .await
 }
 
 async fn function_handler(event: LambdaEvent<Value>) -> Result<Response, Error> {
-
-    let item: Item = serde_json::from_str(event.payload["body"].as_str().unwrap())?;    
+    let item: Item = serde_json::from_str(event.payload["body"].as_str().unwrap())?;
     println!("{:?}", item);
 
-    Ok(Response { 
-        statusCode: 200,
+    Ok(Response {
+        status_code: 200,
         body: serde_json::to_string(&item)?,
     })
 }

@@ -1,9 +1,9 @@
 use aws_sdk_dynamodb::types::AttributeValue;
-use serde_dynamo::to_item;
+use geohash::{encode, Coord};
 use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
+use serde_dynamo::to_item;
 use serde_json::Value;
-use geohash::{encode, Coord};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Item {
@@ -19,7 +19,7 @@ struct Item {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Response {
-    statusCode: u32,
+    status_code: u32,
 }
 
 #[tokio::main]
@@ -41,17 +41,28 @@ async fn main() -> Result<(), Error> {
         .send()
         .await?;
 
-    run(service_fn(|event: LambdaEvent<Value>| function_handler(&dynamodb, event))).await
+    run(service_fn(|event: LambdaEvent<Value>| {
+        function_handler(&dynamodb, event)
+    }))
+    .await
 }
 
-async fn function_handler(dynamodb: &aws_sdk_dynamodb::Client, event: LambdaEvent<Value>) -> Result<Response, Error> {
-
+async fn function_handler(
+    dynamodb: &aws_sdk_dynamodb::Client,
+    event: LambdaEvent<Value>,
+) -> Result<Response, Error> {
     let mut item: Item = serde_json::from_str(event.payload["body"].as_str().unwrap())?;
     println!("{:?}", item);
 
     item.pk = Some(format!("RT:{}", item.owner));
     item.sk = Some(item.name.clone());
-    item.gpk = Some(encode(Coord {x: item.lon.parse::<f64>().unwrap(), y: item.lat.parse::<f64>().unwrap()}, 4usize)?);
+    item.gpk = Some(encode(
+        Coord {
+            x: item.lon.parse::<f64>().unwrap(),
+            y: item.lat.parse::<f64>().unwrap(),
+        },
+        4usize,
+    )?);
     item.gsk = Some(format!("RT:{}:{}", item.owner, item.name));
 
     let put_item = to_item(item)?;
@@ -63,7 +74,5 @@ async fn function_handler(dynamodb: &aws_sdk_dynamodb::Client, event: LambdaEven
         .send()
         .await?;
 
-    Ok(Response {
-        statusCode: 200
-    })
+    Ok(Response { status_code: 200 })
 }

@@ -1,0 +1,9 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "functions/rust/save/Cargo.toml",
+        "functions/rust/wave/Cargo.toml",
+        "functions/rust/search/Cargo.toml",
+        "functions/rust/conc/Cargo.toml",
+        "functions/rust/event/Cargo.toml"
+    ]
+}
