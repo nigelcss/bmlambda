@@ -11,7 +11,7 @@ Parameters:
 Globals:
   Function:
     Timeout: 120
-    MemorySize: 128
+    MemorySize: 256
     Tracing: Active
   Api:
     TracingEnabled: True
@@ -261,7 +261,7 @@ Resources:
     Properties:
       CodeUri: functions/rust/search
       Handler: bootstrap
-      Runtime: provided.al2
+      Runtime: provied.al2
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBReadOnlyAccess
@@ -308,10 +308,12 @@ Resources:
 
   GoWaveFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: functions/go/wave/src
-      Handler: handler
-      Runtime: go1.x
+      Handler: bootstrap
+      Runtime: provided.al2
       Architectures:
         - x86_64
       Events:
@@ -322,10 +324,12 @@ Resources:
             Method: post
   GoSaveFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: functions/go/save/src
-      Handler: handler
-      Runtime: go1.x
+      Handler: bootstrap
+      Runtime: provided.al2
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBFullAccess
@@ -337,10 +341,12 @@ Resources:
             Method: post
   GoSearchFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: functions/go/search/src
-      Handler: handler
-      Runtime: go1.x
+      Handler: bootstrap
+      Runtime: provided.al2
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBReadOnlyAccess
@@ -352,10 +358,12 @@ Resources:
             Method: post
   GoConcFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: functions/go/conc/src
-      Handler: handler
-      Runtime: go1.x
+      Handler: bootstrap
+      Runtime: provided.al2
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBReadOnlyAccess
@@ -367,10 +375,12 @@ Resources:
             Method: post
   GoWarmUpFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: functions/go/search/src
-      Handler: handler
-      Runtime: go1.x
+      Handler: bootstrap
+      Runtime: provided.al2
       Architectures:
         - x86_64
       Policies: AmazonDynamoDBReadOnlyAccess
